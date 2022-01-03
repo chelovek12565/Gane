@@ -20,15 +20,24 @@ class Player(pygame.sprite.Sprite):
             self.first = False
             x, y = r
             self.rect.x = x + 32
-            self.rect.y = y + 47
-        self.anim_n += 1
-        if self.anim_n >= 601:
-            self.anim_n = 60
+            self.rect.y = y + 52
+        self.anim_n += 5
         if self.status == 'idle':
+            if self.anim_n >= 600:
+                self.anim_n = 60
             if self.align == 'right':
                 self.image = pygame.image.load(f'data/animations/Idle/Idle_{self.anim_n // 60}.png')
             else:
                 self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Idle/Idle_{self.anim_n // 60}.png'), True, False)
+        elif self.status == 'right':
+            if self.anim_n == 600:
+                self.anim_n = 60
+            self.image = pygame.image.load(f'data/animations/Walk/Run_{self.anim_n // 60}.png')
+        elif self.status == 'left':
+            if self.anim_n == 600:
+                self.anim_n = 60
+            self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Walk/Run_{self.anim_n // 60}.png'), True, False)
+
 
     def align_change(self, side):
         if self.align != side:
@@ -43,24 +52,23 @@ class Camera:
         self.r = list(map(lambda i: 750 // 2 - i * 2, player_cord))
 
     def movement(self, side=None):
-        print(self.r)
         if not side:
             return self.r
         elif side == 'left':
             x, y = self.r
-            self.r = [x + 1, y]
+            self.r = [x + 5, y]
             return self.r
         elif side == 'right':
             x, y = self.r
-            self.r = [x - 1, y]
+            self.r = [x - 5, y]
             return self.r
         elif side == 'up':
             x, y = self.r
-            self.r = [x, y - 1]
+            self.r = [x, y - 5]
             return self.r
         elif side == 'down':
             x, y = self.r
-            self.r = [x, y + 1]
+            self.r = [x, y + 5]
             return self.r
 
 

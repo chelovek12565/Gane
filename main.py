@@ -13,9 +13,9 @@ camera = Camera([player.rect.x, player.rect.y])
 r = camera.movement()
 all_sprites.update(r=r)
 clock = pygame.time.Clock()
-clock.tick(60)
 running = True
 while running:
+    clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -24,14 +24,17 @@ while running:
                 all_sprites.update(r)
                 player.align_change('right')
                 walking = 'right'
+                player.status = 'right'
             elif event.key == pygame.K_a:
                 walking = 'left'
                 player.align_change('left')
-            player.status = 'idle'
+                player.status = 'left'
             player.anim_n = 60
         elif event.type == pygame.KEYUP:
             if event.key in [pygame.K_w, pygame.K_a, pygame.K_d, pygame.K_s]:
                 walking = None
+                player.status = 'idle'
+                player.anim_n = 60
     if walking == 'left':
         all_sprites.update(camera.movement('left'))
     elif walking == 'right':
