@@ -17,7 +17,6 @@ class Enemy(pygame.sprite.Sprite):
             r1 = self.r
             self.r = r
             r = [r[0] - r1[0], r[1] - r1[1]]
-            print(r)
             self.rect.x = self.rect.x + r[0]
             self.rect.y = self.rect.y + r[1]
         if player_pos:
@@ -25,6 +24,39 @@ class Enemy(pygame.sprite.Sprite):
                 self.rect.x -= 1
             elif self.rect.x < player_pos[0]:
                 self.rect.x += 1
+
+    def collision_test(self, rect, tiles):
+        hit_list = []
+        for tile in tiles:
+            if rect.colliderect(tile):
+                hit_list.append(tile)
+        return hit_list
+
+    def move(self, movement, tiles_f, r):
+        tiles = []
+        for tile in tiles_f:
+            tiles.append(pygame.Rect([tile[0] + r[0], tile[1] + r[1], 32, 32]))
+        collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
+        rect = pygame.Rect([self.rect.x, self.rect.y, 42, 76])
+        rect.x += movement[0]
+        hit_list = self.collision_test(rect, tiles)
+        for tile in hit_list:
+            if movement[0] > 0:
+                rect.right = tile.left
+                collision_types['right'] = True
+            elif movement[0] < 0:
+                rect.left = tile.right
+                collision_types['left'] = True
+        rect.y += movement[1]
+        hit_list = self.collision_test(rect, tiles)
+        for tile in hit_list:
+            if movement[1] > 0:
+                rect.bottom = tile.top
+                collision_types['bottom'] = True
+            elif movement[1] < 0:
+                rect.top = tile.bottom
+                collision_types['top'] = True
+        return rect, collision_types, tiles
 
 
 class Player(pygame.sprite.Sprite):
@@ -65,7 +97,6 @@ class Player(pygame.sprite.Sprite):
                 self.anim_n = 60
             self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Walk/Run_{self.anim_n // 60}.png'), True, False)
         elif self.status == 'dash':
-            print(self.anim_n, self.anim_n // 75)
             if self.anim_n >= 150:
                 self.status = self.align
                 self.anim_n = 60
@@ -143,6 +174,7 @@ class Camera:
         y *= 32 - 5
         px, py = player_cord
         self.r = [px - x, py - y]
+        self.r0 = self.r.copy()
 
     def movement(self, n=6, player=None, side=None):
         if not side:
@@ -173,7 +205,9 @@ class Camera:
         x *= 32
         y *= 32 - 5
         px, py = new_player_cords
-        self.r = [px - x, py - y]
+        went = self.r[0] - self.r0[0], self.r[1] - self.r0[1]
+        self.r = [px - x + went[0], py - y + went[1]]
+        self.r0 = [px - x, py - y]
 
 
 class Level(pygame.sprite.Sprite):
@@ -215,6 +249,7 @@ def load_level(filename):
                 player_cord = (j, i)
             elif symbol == 'e':
                 enemies.append((j, i))
+                im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
             else:
                 im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
 

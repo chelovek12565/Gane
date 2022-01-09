@@ -79,7 +79,7 @@ while running:
                     WIDTH, HEIGHT = display_size
                     player.rect.x, player.rect.y = WIDTH // 2 - player.image.get_width() // 2, HEIGHT // 2 - \
                                                    player.image.get_height() // 2
-                    camera.re_init((player.rect.x, player.rect.y))
+                    # camera.re_init((player.rect.x, player.rect.y))
                     all_sprites.update(r=camera.r)
 
                     fullscreen = True
@@ -87,7 +87,7 @@ while running:
                     WIDTH, HEIGHT = 750, 750
                     player.rect.x, player.rect.y = WIDTH // 2 - player.image.get_width() // 2, HEIGHT // 2 - \
                                                    player.image.get_height() // 2
-                    camera.re_init((player.rect.x, player.rect.y))
+                    # camera.re_init((player.rect.x, player.rect.y))
                     all_sprites.update(r=camera.r)
                     screen = pygame.display.set_mode((750, 750), pygame.RESIZABLE)
                     fullscreen = False
