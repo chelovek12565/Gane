@@ -3,6 +3,30 @@ import pygame
 WIDTH, HEIGHT = 750, 750
 
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, loc, r, path, visibility, *args):
+        super(Enemy, self).__init__(*args)
+        self.image = pygame.image.load(f'{path}/Idle/Idle_1.png')
+        self.rect = self.image.get_rect()
+        self.r = r
+        self.rect.x, self.rect.y = loc[0] + r[0], loc[1] + r[1]
+        self.visibility = visibility
+
+    def update(self, player_pos=None, r=None):
+        if r:
+            r1 = self.r
+            self.r = r
+            r = [r[0] - r1[0], r[1] - r1[1]]
+            print(r)
+            self.rect.x = self.rect.x + r[0]
+            self.rect.y = self.rect.y + r[1]
+        if player_pos:
+            if self.rect.x > player_pos[0]:
+                self.rect.x -= 1
+            elif self.rect.x < player_pos[0]:
+                self.rect.x += 1
+
+
 class Player(pygame.sprite.Sprite):
     image = pygame.image.load('data/animations/Idle/Idle_1.png')
 
@@ -40,14 +64,24 @@ class Player(pygame.sprite.Sprite):
             if self.anim_n == 600:
                 self.anim_n = 60
             self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Walk/Run_{self.anim_n // 60}.png'), True, False)
-        n = self.jump_n // 5
-        if not n:
-            n += 1
-        if self.jump_n and self.align == 'right':
-            self.image = pygame.image.load(f'data/animations/Jump/Jump_{n}.png')
-        elif self.jump_n and self.align == 'left':
-            self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Jump/Jump_{n}.png'), True, False)
-
+        elif self.status == 'dash':
+            print(self.anim_n, self.anim_n // 75)
+            if self.anim_n >= 150:
+                self.status = self.align
+                self.anim_n = 60
+                return
+            if self.align == 'right':
+                self.image = pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png')
+            else:
+                self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png'), True, False)
+        if self.status != 'dash':
+            n = self.jump_n // 5
+            if not n:
+                n += 1
+            if self.jump_n and self.align == 'right':
+                self.image = pygame.image.load(f'data/animations/Jump/Jump_{n}.png')
+            elif self.jump_n and self.align == 'left':
+                self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Jump/Jump_{n}.png'), True, False)
 
     def align_change(self, side):
         if self.align != side:
@@ -55,6 +89,10 @@ class Player(pygame.sprite.Sprite):
             self.align = side
         self.status = 'idle'
         self.anim_n = 60
+
+    def set_dash(self):
+        self.status = 'dash'
+        self.anim_n = 75
 
     def jump(self):
         self.jump_n += 1
@@ -137,6 +175,7 @@ class Camera:
         px, py = new_player_cords
         self.r = [px - x, py - y]
 
+
 class Level(pygame.sprite.Sprite):
     def __init__(self, image, size, *args):
         super(Level, self).__init__(*args)
@@ -149,10 +188,19 @@ class Level(pygame.sprite.Sprite):
         self.rect.y = y
 
 
+class Bar(pygame.sprite.Sprite):
+    def __init__(self, n, path, cords, *args):
+        super(Bar, self).__init__(*args)
+        self.n = n
+        self.image = pygame.image.load(path)
+        self.rect.x, self.rect.y = cords
+
+
 def load_level(filename):
     file = open(f'data/levels/{filename}', 'rt').read().split('\n')
 
     tiles = []
+    enemies = []
     im = Image.new('RGB', (len(file[0]) * 32, len(file) * 32), (66, 40, 53))
     wall = Image.open('data/wall.png')
     wall_2 = Image.open('data/wall_2.png')
@@ -165,8 +213,10 @@ def load_level(filename):
             elif symbol == '@':
                 im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
                 player_cord = (j, i)
+            elif symbol == 'e':
+                enemies.append((j, i))
             else:
                 im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
 
     level = Level(im.tobytes(), im.size)
-    return level, player_cord, tiles
+    return level, player_cord, tiles, enemies
