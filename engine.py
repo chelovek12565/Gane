@@ -1,6 +1,6 @@
 from PIL import Image
 import pygame
-WIDTH, HEIGHT = 750, 750
+WIDTH, HEIGHT = 1200, 850
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -9,10 +9,12 @@ class Enemy(pygame.sprite.Sprite):
         self.image = pygame.image.load(f'{path}/Idle/Idle_1.png')
         self.rect = self.image.get_rect()
         self.r = r
+        self.momentum = 0
+        self.prev_coll = {'left': False, 'right':False, 'top':False, 'bottom':False}
         self.rect.x, self.rect.y = loc[0] + r[0], loc[1] + r[1]
         self.visibility = visibility
 
-    def update(self, player_pos=None, r=None):
+    def update(self, player_pos=None, r=None, tiles=None):
         if r:
             r1 = self.r
             self.r = r
@@ -20,10 +22,25 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.x = self.rect.x + r[0]
             self.rect.y = self.rect.y + r[1]
         if player_pos:
+            movement = [0, 0]
             if self.rect.x > player_pos[0]:
-                self.rect.x -= 1
+                movement[0] -= 4
             elif self.rect.x < player_pos[0]:
-                self.rect.x += 1
+                movement[0] += 4
+            print(player_pos[1] / self.rect.y)
+            if player_pos[1] / self.rect.y < 0.9 and not self.momentum and self.prev_coll['bottom'] and abs(self.rect.x - player_pos[0]) <= 250:
+                self.momentum = 20
+            if self.momentum:
+                print('jumping')
+                self.momentum -= 1
+                movement[1] -= 6
+            else:
+                movement[1] += 6
+            rect, collisions, tiles = self.move(movement, tiles, r1)
+            self.prev_coll = collisions
+            self.rect.x = rect.x
+            self.rect.y = rect.y
+
 
     def collision_test(self, rect, tiles):
         hit_list = []
@@ -37,7 +54,7 @@ class Enemy(pygame.sprite.Sprite):
         for tile in tiles_f:
             tiles.append(pygame.Rect([tile[0] + r[0], tile[1] + r[1], 32, 32]))
         collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
-        rect = pygame.Rect([self.rect.x, self.rect.y, 42, 76])
+        rect = pygame.Rect([self.rect.x, self.rect.y, 45, 51])
         rect.x += movement[0]
         hit_list = self.collision_test(rect, tiles)
         for tile in hit_list:
@@ -55,6 +72,7 @@ class Enemy(pygame.sprite.Sprite):
                 collision_types['bottom'] = True
             elif movement[1] < 0:
                 rect.top = tile.bottom
+                # rect.y -= 55
                 collision_types['top'] = True
         return rect, collision_types, tiles
 

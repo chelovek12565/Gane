@@ -19,7 +19,7 @@ camera = Camera([player.rect.x, player.rect.y], player_cord)
 r = camera.r
 enemies = pygame.sprite.Group()
 for x, y in enemies_c:
-    Enemy((x * 32, y * 32), r, 'data/animations/Skeleton', 100, enemies, all_sprites)
+    e = Enemy((x * 32, y * 32), r, 'data/animations/Skeleton', 100, enemies, all_sprites)
 all_sprites.update(r=r)
 enemies.update(r=r)
 level.update(r)
@@ -79,7 +79,7 @@ while running:
                     WIDTH, HEIGHT = display_size
                     player.rect.x, player.rect.y = WIDTH // 2 - player.image.get_width() // 2, HEIGHT // 2 - \
                                                    player.image.get_height() // 2
-                    # camera.re_init((player.rect.x, player.rect.y))
+                    camera.re_init((player.rect.x, player.rect.y))
                     all_sprites.update(r=camera.r)
 
                     fullscreen = True
@@ -87,7 +87,7 @@ while running:
                     WIDTH, HEIGHT = 750, 750
                     player.rect.x, player.rect.y = WIDTH // 2 - player.image.get_width() // 2, HEIGHT // 2 - \
                                                    player.image.get_height() // 2
-                    # camera.re_init((player.rect.x, player.rect.y))
+                    camera.re_init((player.rect.x, player.rect.y))
                     all_sprites.update(r=camera.r)
                     screen = pygame.display.set_mode((750, 750), pygame.RESIZABLE)
                     fullscreen = False
@@ -104,11 +104,13 @@ while running:
                                                player.image.get_height() // 2
                 camera.re_init((player.rect.x, player.rect.y))
                 all_sprites.update(r=camera.r)
-                enemies.update((player.rect.x, player.rect.y), camera.r)
     screen.fill((66, 40, 53))
-    enemies.update((player.rect.x, player.rect.y), camera.r)
-
+    # print(e.rect)
+    enemies.update((player.rect.x, player.rect.y), camera.r, tiles)
+    enemies.draw(screen)
     all_sprites.draw(screen)
+    # pygame.draw.rect(screen, pygame.Color('white'), e.rect)
+
 
     pygame.display.flip()
     player.update()
