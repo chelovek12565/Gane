@@ -1,20 +1,28 @@
 from PIL import Image
+from random import randint
 import pygame
+
 WIDTH, HEIGHT = 1200, 850
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, loc, r, path, visibility, *args):
+    def __init__(self, loc, r, path, visibility, def_mom, *args):
         super(Enemy, self).__init__(*args)
         self.image = pygame.image.load(f'{path}/Idle/Idle_1.png')
         self.rect = self.image.get_rect()
+        self.path = path
+        self.align = 'left'
+        self.status = 'idle'
+        self.def_momentum = def_mom
+        self.anim_n = 60
         self.r = r
         self.momentum = 0
-        self.prev_coll = {'left': False, 'right':False, 'top':False, 'bottom':False}
+        self.prev_coll = {'left': False, 'right': False, 'top': False, 'bottom': False}
         self.rect.x, self.rect.y = loc[0] + r[0], loc[1] + r[1]
         self.visibility = visibility
 
     def update(self, player_pos=None, r=None, tiles=None):
+        self.anim_n += 6
         if r:
             r1 = self.r
             self.r = r
@@ -23,15 +31,37 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.y = self.rect.y + r[1]
         if player_pos:
             movement = [0, 0]
-            if self.rect.x > player_pos[0]:
-                movement[0] -= 4
-            elif self.rect.x < player_pos[0]:
-                movement[0] += 4
-            print(player_pos[1] / self.rect.y)
-            if player_pos[1] / self.rect.y < 0.9 and not self.momentum and self.prev_coll['bottom'] and abs(self.rect.x - player_pos[0]) <= 250:
-                self.momentum = 20
+            if abs(self.rect.x - player_pos[0]) > 6:
+                if self.rect.x > player_pos[0]:
+                    if self.align != 'right':
+                        self.align = 'right'
+                        self.status = 'walking'
+                        self.anim_n = 60
+                    movement[0] -= randint(4, 6)
+                elif self.rect.x < player_pos[0]:
+                    if self.align != 'left':
+                        self.align = 'left'
+                        self.status = 'walking'
+                        self.anim_n = 60
+                    movement[0] += randint(4, 6)
+            tiles_n = []
+            for tile in tiles:
+                tiles_n.append(pygame.Rect([tile[0] + r1[0], tile[1] + r1[1], 32, 32]))
+            if self.align == 'left':
+                if player_pos[1] / self.rect.y < 0.9 and not self.momentum and self.prev_coll['bottom'] and abs(
+                        self.rect.x - player_pos[0]) <= 250 \
+                        and self.collision_test(pygame.Rect(self.rect.x + self.image.get_width() // 2,
+                                                            self.rect.y - 120 + self.image.get_height() // 2,
+                                                            self.def_momentum * 8, 140), tiles_n):
+                    self.momentum = 24
+            elif self.align == 'right':
+                if player_pos[1] / self.rect.y < 0.9 and not self.momentum and self.prev_coll['bottom'] and abs(
+                        self.rect.x - player_pos[0]) <= 250 \
+                        and self.collision_test(pygame.Rect(self.rect.x - (self.def_momentum * 8) + self.image.get_width() // 2,
+                                                            self.rect.y - 140 + self.image.get_height() // 2,
+                                                            self.def_momentum * 8, 140), tiles_n):
+                    self.momentum = 24
             if self.momentum:
-                print('jumping')
                 self.momentum -= 1
                 movement[1] -= 6
             else:
@@ -40,7 +70,17 @@ class Enemy(pygame.sprite.Sprite):
             self.prev_coll = collisions
             self.rect.x = rect.x
             self.rect.y = rect.y
-
+            if self.status == 'walking':
+                if self.anim_n >= 240:
+                    self.anim_n = 60
+                if self.align == 'left':
+                    self.image = pygame.image.load(f'{self.path}/Run/Run_{self.anim_n // 60}.png')
+                elif self.align == 'right':
+                    self.image = pygame.transform.flip(pygame.image.load(f'{self.path}/Run/Run_{self.anim_n // 60}.png'), True, False)
+            elif self.status == 'idle':
+                if self.anim_n >= 240:
+                    self.anim_n = 60
+                self.image = pygame.image.load(f'{self.path}/Idle/Idle_{self.anim_n // 60}.png')
 
     def collision_test(self, rect, tiles):
         hit_list = []
@@ -54,7 +94,7 @@ class Enemy(pygame.sprite.Sprite):
         for tile in tiles_f:
             tiles.append(pygame.Rect([tile[0] + r[0], tile[1] + r[1], 32, 32]))
         collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
-        rect = pygame.Rect([self.rect.x, self.rect.y, 45, 51])
+        rect = pygame.Rect([self.rect.x, self.rect.y, self.image.get_width(), self.image.get_height()])
         rect.x += movement[0]
         hit_list = self.collision_test(rect, tiles)
         for tile in hit_list:
@@ -105,7 +145,8 @@ class Player(pygame.sprite.Sprite):
             if self.align == 'right':
                 self.image = pygame.image.load(f'data/animations/Idle/Idle_{self.anim_n // 60}.png')
             else:
-                self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Idle/Idle_{self.anim_n // 60}.png'), True, False)
+                self.image = pygame.transform.flip(
+                    pygame.image.load(f'data/animations/Idle/Idle_{self.anim_n // 60}.png'), True, False)
         elif self.status == 'right':
             if self.anim_n == 600:
                 self.anim_n = 60
@@ -113,7 +154,8 @@ class Player(pygame.sprite.Sprite):
         elif self.status == 'left':
             if self.anim_n == 600:
                 self.anim_n = 60
-            self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Walk/Run_{self.anim_n // 60}.png'), True, False)
+            self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Walk/Run_{self.anim_n // 60}.png'),
+                                               True, False)
         elif self.status == 'dash':
             if self.anim_n >= 150:
                 self.status = self.align
@@ -122,7 +164,8 @@ class Player(pygame.sprite.Sprite):
             if self.align == 'right':
                 self.image = pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png')
             else:
-                self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png'), True, False)
+                self.image = pygame.transform.flip(
+                    pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png'), True, False)
         if self.status != 'dash':
             n = self.jump_n // 5
             if not n:

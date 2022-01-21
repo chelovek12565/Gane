@@ -19,7 +19,7 @@ camera = Camera([player.rect.x, player.rect.y], player_cord)
 r = camera.r
 enemies = pygame.sprite.Group()
 for x, y in enemies_c:
-    e = Enemy((x * 32, y * 32), r, 'data/animations/Skeleton', 100, enemies, all_sprites)
+    e = Enemy((x * 32, y * 32), r, 'data/animations/Big_demon', 100, 8, enemies, all_sprites)
 all_sprites.update(r=r)
 enemies.update(r=r)
 level.update(r)
@@ -105,12 +105,10 @@ while running:
                 camera.re_init((player.rect.x, player.rect.y))
                 all_sprites.update(r=camera.r)
     screen.fill((66, 40, 53))
-    # print(e.rect)
     enemies.update((player.rect.x, player.rect.y), camera.r, tiles)
     enemies.draw(screen)
     all_sprites.draw(screen)
-    # pygame.draw.rect(screen, pygame.Color('white'), e.rect)
-
+    x, y = e.rect.x, e.rect.y
 
     pygame.display.flip()
     player.update()
