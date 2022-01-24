@@ -6,12 +6,13 @@ WIDTH, HEIGHT = 1200, 850
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, loc, r, path, visibility, def_mom, *args):
+    def __init__(self, loc, r, path, visibility, def_mom, hp, *args):
         super(Enemy, self).__init__(*args)
         self.image = pygame.image.load(f'{path}/Idle/Idle_1.png')
         self.rect = self.image.get_rect()
         self.path = path
         self.align = 'left'
+        self.hp = hp
         self.status = 'idle'
         self.def_momentum = def_mom
         self.anim_n = 60
@@ -57,9 +58,10 @@ class Enemy(pygame.sprite.Sprite):
             elif self.align == 'right':
                 if player_pos[1] / self.rect.y < 0.9 and not self.momentum and self.prev_coll['bottom'] and abs(
                         self.rect.x - player_pos[0]) <= 250 \
-                        and self.collision_test(pygame.Rect(self.rect.x - (self.def_momentum * 8) + self.image.get_width() // 2,
-                                                            self.rect.y - 140 + self.image.get_height() // 2,
-                                                            self.def_momentum * 8, 140), tiles_n):
+                        and self.collision_test(
+                    pygame.Rect(self.rect.x - (self.def_momentum * 8) + self.image.get_width() // 2,
+                                self.rect.y - 140 + self.image.get_height() // 2,
+                                self.def_momentum * 8, 140), tiles_n):
                     self.momentum = 24
             if self.momentum:
                 self.momentum -= 1
@@ -76,7 +78,8 @@ class Enemy(pygame.sprite.Sprite):
                 if self.align == 'left':
                     self.image = pygame.image.load(f'{self.path}/Run/Run_{self.anim_n // 60}.png')
                 elif self.align == 'right':
-                    self.image = pygame.transform.flip(pygame.image.load(f'{self.path}/Run/Run_{self.anim_n // 60}.png'), True, False)
+                    self.image = pygame.transform.flip(
+                        pygame.image.load(f'{self.path}/Run/Run_{self.anim_n // 60}.png'), True, False)
             elif self.status == 'idle':
                 if self.anim_n >= 240:
                     self.anim_n = 60
@@ -166,6 +169,22 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.image = pygame.transform.flip(
                     pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png'), True, False)
+        elif self.status == 'attacking':
+            if self.anim_n >= 480:
+                self.status = self.align
+                self.anim_n = 60
+                self.rect.y += 6
+                if self.align == 'left':
+                    self.rect.x += 70
+                    self.image = pygame.image.load('data/animations/Idle/Idle_1.png')
+                return
+            if self.align == 'right':
+                self.image = pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 120}.png')
+            else:
+                if self.anim_n == 240:
+                    self.rect.x -= 70
+                self.image = pygame.transform.flip(
+                    pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 120}.png'), True, False)
         if self.status != 'dash':
             n = self.jump_n // 5
             if not n:
@@ -284,11 +303,13 @@ class Level(pygame.sprite.Sprite):
 
 
 class Bar(pygame.sprite.Sprite):
-    def __init__(self, n, path, cords, *args):
+    def __init__(self, n, path, cords, size, *args):
         super(Bar, self).__init__(*args)
         self.n = n
         self.image = pygame.image.load(path)
         self.rect.x, self.rect.y = cords
+
+    # def update(self, cords, n):
 
 
 def load_level(filename):

@@ -19,7 +19,7 @@ camera = Camera([player.rect.x, player.rect.y], player_cord)
 r = camera.r
 enemies = pygame.sprite.Group()
 for x, y in enemies_c:
-    e = Enemy((x * 32, y * 32), r, 'data/animations/Big_demon', 100, 8, enemies, all_sprites)
+    e = Enemy((x * 32, y * 32), r, 'data/animations/Big_demon', 100, 8, 5, enemies, all_sprites)
 all_sprites.update(r=r)
 enemies.update(r=r)
 level.update(r)
@@ -28,30 +28,31 @@ running = True
 while running:
     clock.tick(60)
     movement = [0, 0]
-    if player.status == 'dash':
-        if player.align == 'right':
-            movement[0] += 25
-        else:
-            movement[0] -= 25
-    else:
-        if walking[player.align]:
+    if player.status != 'attacking':
+        if player.status == 'dash':
             if player.align == 'right':
-                movement[0] += 6
+                movement[0] += 25
             else:
-                movement[0] -= 6
-        elif player.align == 'left' and walking['right']:
-            movement[0] += 6
-        elif player.align == 'right' and walking['left']:
-            movement[0] -= 6
-        if not walking['left'] and not walking['right'] and player.status != 'idle':
-            player.status = 'idle'
-            player.anim_n = 60
-        r = camera.r
-        if player.jumping:
-            player.jump()
-            movement[1] -= 12
+                movement[0] -= 25
         else:
-            movement[1] += 12
+            if walking[player.align]:
+                if player.align == 'right':
+                    movement[0] += 6
+                else:
+                    movement[0] -= 6
+            elif player.align == 'left' and walking['right']:
+                movement[0] += 6
+            elif player.align == 'right' and walking['left']:
+                movement[0] -= 6
+            if not walking['left'] and not walking['right'] and player.status != 'idle':
+                player.status = 'idle'
+                player.anim_n = 60
+            r = camera.r
+            if player.jumping:
+                player.jump()
+                movement[1] -= 12
+            else:
+                movement[1] += 12
     rect, collisions, b = player.move(movement, tiles, camera.r)
     camera.r = camera.r[0] - (rect.x - player.rect.x), camera.r[1] - (rect.y - player.rect.y)
     all_sprites.update(r=camera.r)
@@ -72,6 +73,10 @@ while running:
                 player.jumping = 'up'
             elif event.key == pygame.K_LSHIFT:
                 player.set_dash()
+            elif event.key == pygame.K_SPACE and player.status != 'attacking' and not player.jump_n and collisions['bottom']:
+                player.status = 'attacking'
+                player.rect.y -= 6
+                player.anim_n = 120
             elif event.key == pygame.K_F11:
                 if not fullscreen:
                     screen = pygame.display.set_mode(display_size, pygame.FULLSCREEN)
