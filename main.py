@@ -19,7 +19,7 @@ camera = Camera([player.rect.x, player.rect.y], player_cord)
 r = camera.r
 enemies = pygame.sprite.Group()
 for x, y in enemies_c:
-    e = Enemy((x * 32, y * 32), r, 'data/animations/Big_demon', 100, 8, 5, enemies, all_sprites)
+    e = Enemy((x * 32, y * 32), r, 'data/animations/Big_demon', 100, 8, 1, enemies, all_sprites)
 all_sprites.update(r=r)
 enemies.update(r=r)
 level.update(r)
@@ -60,24 +60,32 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_d:
-                all_sprites.update(r=r)
-                player.align_change('right')
-                walking['right'] = True
-                player.status = 'right'
-            elif event.key == pygame.K_a:
-                walking['left'] = True
-                player.align_change('left')
-                player.status = 'left'
-            elif event.key == pygame.K_w and not player.jumping and collisions['bottom']:
-                player.jumping = 'up'
-            elif event.key == pygame.K_LSHIFT:
-                player.set_dash()
-            elif event.key == pygame.K_SPACE and player.status != 'attacking' and not player.jump_n and collisions['bottom']:
-                player.status = 'attacking'
-                player.rect.y -= 6
-                player.anim_n = 120
-            elif event.key == pygame.K_F11:
+            if player.status != 'attacking':
+                if event.key == pygame.K_d:
+                    all_sprites.update(r=r)
+                    player.align_change('right')
+                    walking['right'] = True
+                    player.status = 'right'
+                elif event.key == pygame.K_a:
+                    walking['left'] = True
+                    player.align_change('left')
+                    player.status = 'left'
+                elif event.key == pygame.K_w and not player.jumping and collisions['bottom']:
+                    player.jumping = 'up'
+                elif event.key == pygame.K_LSHIFT:
+                    player.set_dash()
+                elif event.key == pygame.K_SPACE and player.status != 'attacking' and not player.jump_n and collisions['bottom']:
+                    player.status = 'attacking'
+                    if player.align == 'right':
+                        rect = pygame.Rect(player.rect.x + 40, player.rect.y,
+                                           90, player.image.get_height())
+                    else:
+                        rect = pygame.Rect(player.rect.x - 90, player.rect.y, 90,
+                                           player.image.get_height())
+                    enemies.update(attack_rect=rect)
+                    player.rect.y -= 6
+                    player.anim_n = 120
+            if event.key == pygame.K_F11:
                 if not fullscreen:
                     screen = pygame.display.set_mode(display_size, pygame.FULLSCREEN)
 

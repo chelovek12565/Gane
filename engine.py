@@ -22,7 +22,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = loc[0] + r[0], loc[1] + r[1]
         self.visibility = visibility
 
-    def update(self, player_pos=None, r=None, tiles=None):
+    def update(self, player_pos=None, r=None, tiles=None, attack_rect=None):
         self.anim_n += 6
         if r:
             r1 = self.r
@@ -32,7 +32,7 @@ class Enemy(pygame.sprite.Sprite):
             self.rect.y = self.rect.y + r[1]
         if player_pos:
             movement = [0, 0]
-            if abs(self.rect.x - player_pos[0]) > 6:
+            if abs(self.rect.x - player_pos[0]) > 6 and self.status and self.status != 'death':
                 if self.rect.x > player_pos[0]:
                     if self.align != 'right':
                         self.align = 'right'
@@ -84,6 +84,23 @@ class Enemy(pygame.sprite.Sprite):
                 if self.anim_n >= 240:
                     self.anim_n = 60
                 self.image = pygame.image.load(f'{self.path}/Idle/Idle_{self.anim_n // 60}.png')
+            elif self.status == 'death':
+                if self.anim_n >= 760:
+                    self.status = None
+                    self.image = pygame.Surface((1, 1))
+                    return
+                image = pygame.image.load(f'{self.path}/Idle/Idle_1.png')
+                size = (250 // (250 // max(image.get_height(), image.get_width())),
+                        200 // (200 // max(image.get_height(), image.get_width())))
+                print(size)
+                self.image = pygame.transform.scale(pygame.image.load(
+                    f'data/animations/Explosion/Exp_{(self.anim_n + 180) // 240}.png'), size)
+        if attack_rect:
+            if self.rect.colliderect(attack_rect):
+                self.hp -= 1
+                if self.hp == 0:
+                    self.status = 'death'
+                    self.anim_n = 90
 
     def collision_test(self, rect, tiles):
         hit_list = []
