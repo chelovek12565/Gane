@@ -1,6 +1,7 @@
-from PIL import Image
-from random import randint
+from PIL import Image, ImageDraw
+from random import randint, sample
 import pygame
+import pprint
 
 WIDTH, HEIGHT = 1200, 850
 
@@ -63,11 +64,12 @@ class Enemy(pygame.sprite.Sprite):
                                 self.rect.y - 140 + self.image.get_height() // 2,
                                 self.def_momentum * 8, 140), tiles_n):
                     self.momentum = 24
-            if self.momentum:
-                self.momentum -= 1
-                movement[1] -= 6
-            else:
-                movement[1] += 6
+            if self.status != 'death':
+                if self.momentum:
+                    self.momentum -= 1
+                    movement[1] -= 6
+                else:
+                    movement[1] += 6
             rect, collisions, tiles = self.move(movement, tiles, r1)
             self.prev_coll = collisions
             self.rect.x = rect.x
@@ -92,7 +94,7 @@ class Enemy(pygame.sprite.Sprite):
                 image = pygame.image.load(f'{self.path}/Idle/Idle_1.png')
                 size = (250 // (250 // max(image.get_height(), image.get_width())),
                         200 // (200 // max(image.get_height(), image.get_width())))
-                print(size)
+                # self.rect.y += size[1] // 3.5
                 self.image = pygame.transform.scale(pygame.image.load(
                     f'data/animations/Explosion/Exp_{(self.anim_n + 180) // 240}.png'), size)
         if attack_rect:
@@ -146,6 +148,7 @@ class Player(pygame.sprite.Sprite):
         self.first = True
         self.jump_n = 0
         self.jumping = False
+        self.hp = 50
         self.anim_n = 60
         self.align = 'right'
         self.rect = self.image.get_rect()
@@ -153,7 +156,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.y = HEIGHT // 2 - self.rect.y
         self.status = 'idle'
 
-    def update(self, r=None):
+    def update(self, r=None, attack_rects=None):
         if self.first:
             self.first = False
             self.rect.x = WIDTH // 2 - 32
@@ -187,7 +190,7 @@ class Player(pygame.sprite.Sprite):
                 self.image = pygame.transform.flip(
                     pygame.image.load(f'data/animations/Dash/Dash_{self.anim_n // 75}.png'), True, False)
         elif self.status == 'attacking':
-            if self.anim_n >= 480:
+            if self.anim_n >= 240:
                 self.status = self.align
                 self.anim_n = 60
                 self.rect.y += 6
@@ -196,13 +199,13 @@ class Player(pygame.sprite.Sprite):
                     self.image = pygame.image.load('data/animations/Idle/Idle_1.png')
                 return
             if self.align == 'right':
-                self.image = pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 120}.png')
+                self.image = pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 60}.png')
             else:
-                if self.anim_n == 240:
+                if self.anim_n == 126:
                     self.rect.x -= 70
                 self.image = pygame.transform.flip(
-                    pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 120}.png'), True, False)
-        if self.status != 'dash':
+                    pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 60}.png'), True, False)
+        if self.status != 'dash' and self.status != 'attacking':
             n = self.jump_n // 5
             if not n:
                 n += 1
@@ -210,6 +213,11 @@ class Player(pygame.sprite.Sprite):
                 self.image = pygame.image.load(f'data/animations/Jump/Jump_{n}.png')
             elif self.jump_n and self.align == 'left':
                 self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Jump/Jump_{n}.png'), True, False)
+        if attack_rects:
+            for rect in attack_rects:
+                if self.rect.colliderect(rect):
+                    self.hp -= 1
+                    print(self.hp)
 
     def align_change(self, side):
         if self.align != side:
@@ -242,6 +250,10 @@ class Player(pygame.sprite.Sprite):
             tiles.append(pygame.Rect([tile[0] + r[0], tile[1] + r[1], 32, 32]))
         collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
         rect = pygame.Rect([self.rect.x, self.rect.y, 42, 76])
+        if self.status == 'attack' and self.align == 'left':
+            print(rect.x)
+            rect.x += 100
+            print(rect.x)
         rect.x += movement[0]
         hit_list = self.collision_test(rect, tiles)
         for tile in hit_list:
@@ -260,6 +272,8 @@ class Player(pygame.sprite.Sprite):
             elif movement[1] < 0:
                 rect.top = tile.bottom
                 collision_types['top'] = True
+        if self.status == 'attacking' and self.align == 'left':
+            print(hit_list)
         return rect, collision_types, tiles
 
 
@@ -329,28 +343,60 @@ class Bar(pygame.sprite.Sprite):
     # def update(self, cords, n):
 
 
-def load_level(filename):
-    file = open(f'data/levels/{filename}', 'rt').read().split('\n')
-
+def level_create(arr):
     tiles = []
-    enemies = []
-    im = Image.new('RGB', (len(file[0]) * 32, len(file) * 32), (66, 40, 53))
+    enemies = {}
+    im = Image.new('RGB', (len(arr[0][0]) * 32, len(arr[0]) * 32), (66, 40, 53))
     wall = Image.open('data/wall.png')
     wall_2 = Image.open('data/wall_2.png')
-    for i in range(len(file)):
-        for j in range(len(file[0])):
-            symbol = file[i][j]
+    for i in range(len(arr[0])):
+        for j in range(len(arr[0][0])):
+            symbol = arr[0][i][j]
             if symbol == '#':
                 tiles.append([j * 32, i * 32, 32, 32])
                 im.paste(wall_2, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
             elif symbol == '@':
                 im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
                 player_cord = (j, i)
-            elif symbol == 'e':
-                enemies.append((j, i))
+            elif symbol == '.':
                 im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
+            elif symbol == '_':
+                draw = ImageDraw.ImageDraw(im)
+                draw.rectangle((j * 32, i * 32, (j + 1) * 32, (i + 1) * 32), (66, 40, 53))
             else:
                 im.paste(wall, (j * 32, i * 32, (j + 1) * 32, (i + 1) * 32))
+                if symbol not in enemies.keys():
+                    enemies[symbol] = [(j, i)]
+                else:
+                    enemies[symbol].append((j, i))
 
     level = Level(im.tobytes(), im.size)
+    im.save('eagaegr.png')
+    pprint.pprint(arr)
     return level, player_cord, tiles, enemies
+
+
+def create_level(l=2):
+    names = sample(range(1, 3), k=l)
+    arr = []
+    files = []
+    with open('data/levels/in.txt', 'rt') as f:
+        files.append(f.read().split('\n'))
+        f.close()
+    for i in names:
+        with open(f'data/levels/{i}.txt', 'rt') as f:
+            files.append(f.read().split('\n'))
+            f.close()
+    with open('data/levels/out.txt', 'rt') as f:
+        files.append(f.read().split('\n'))
+        f.close()
+    for i in range(len(files)):
+        for _ in range(max(map(lambda x: len(x), files)) - len(files[i])):
+            files[i].insert(0, '_' * len(files[i][0]))
+    arr.append(files[0])
+    for i in range(1, len(files)):
+        for j in range(len(arr[0])):
+            arr[0][j] += files[i][j]
+    pprint.pprint(arr)
+
+    return level_create(arr)
