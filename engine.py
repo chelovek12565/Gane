@@ -37,7 +37,7 @@ class Enemy(pygame.sprite.Sprite):
         if player_rect:
             player_pos = [player_rect.x, player_rect.y]
             movement = [0, 0]
-            if abs(self.rect.x - player_pos[0]) > 6 and self.status and self.status != 'death':
+            if 500 > abs(self.rect.x - player_pos[0]) > 6 and self.status and self.status != 'death':
                 if self.rect.x > player_pos[0]:
                     if self.align != 'right':
                         self.align = 'right'
@@ -50,6 +50,9 @@ class Enemy(pygame.sprite.Sprite):
                         self.status = 'walking'
                         self.anim_n = 60
                     movement[0] += randint(4, 6)
+            elif abs(self.rect.x - player_pos[0]) > 500 and self.status != 'idle' and self.status:
+                self.status = 'idle'
+                self.anim_n = 60
             tiles_n = []
             for tile in tiles:
                 tiles_n.append(pygame.Rect([tile[0] + r1[0], tile[1] + r1[1], 32, 32]))
@@ -101,7 +104,7 @@ class Enemy(pygame.sprite.Sprite):
                 # self.rect.y += size[1] // 3.5
                 self.image = pygame.transform.scale(pygame.image.load(
                     f'data/animations/Explosion/Exp_{(self.anim_n + 180) // 240}.png'), size)
-            if not attack_rect and self.rect.colliderect(player_rect) and not self.cd and self.status and self.status\
+            if not attack_rect and self.rect.colliderect(player_rect) and not self.cd and self.status and self.status \
                     != 'death':
                 self.cd = 60
                 raise PlayerDamaged
@@ -157,7 +160,7 @@ class Player(pygame.sprite.Sprite):
         self.first = True
         self.jump_n = 0
         self.jumping = False
-        self.hp = 5
+        self.hp = 20
         self.anim_n = 60
         self.align = 'right'
         self.rect = self.image.get_rect()
@@ -185,12 +188,14 @@ class Player(pygame.sprite.Sprite):
                 if self.align == 'right':
                     self.image = pygame.image.load('data/animations/Death/Death_10.png')
                 else:
-                    self.image = pygame.transform.flip(pygame.image.load('data/animations/Death/Death_10.png'), True, False)
+                    self.image = pygame.transform.flip(pygame.image.load('data/animations/Death/Death_10.png'), True,
+                                                       False)
                 return
             if self.align == 'right':
                 self.image = pygame.image.load(f'data/animations/Death/Death_{self.anim_n // 80}.png')
             else:
-                self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Death/Death_{self.anim_n // 80}.png'), True, False)
+                self.image = pygame.transform.flip(
+                    pygame.image.load(f'data/animations/Death/Death_{self.anim_n // 80}.png'), True, False)
         elif self.status == 'right':
             if self.anim_n == 600:
                 self.anim_n = 60
@@ -338,9 +343,6 @@ class Camera:
         self.r0 = [px - x, py - y]
 
 
-
-
-
 class Level(pygame.sprite.Sprite):
     def __init__(self, image, size, *args):
         super(Level, self).__init__(*args)
@@ -361,7 +363,8 @@ class Bar(pygame.sprite.Sprite):
         im = Image.open('data/HealthBar.png')
         hp = Image.open('data/hp.png').resize((int(2.85 * self.n), 4))
         im.paste(hp, (19, 8, 19 + int(2.85 * self.n), 12))
-        self.image = pygame.transform.scale(pygame.image.frombuffer(im.tobytes(), im.size, 'RGBA'), (int(size // 10 * 3.8), size // 10))
+        self.image = pygame.transform.scale(pygame.image.frombuffer(im.tobytes(), im.size, 'RGBA'),
+                                            (int(size // 10 * 3.8), size // 10))
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = cords
 
@@ -428,6 +431,8 @@ def create_level(l=2):
         with open(f'data/levels/{i}.txt', 'rt') as f:
             files.append(f.read().split('\n'))
             f.close()
+    with open('data/levels/bosses/golem.txt', 'rt') as f:
+        files.append(f.read().split('\n'))
     with open('data/levels/out.txt', 'rt') as f:
         files.append(f.read().split('\n'))
         f.close()
@@ -444,3 +449,99 @@ def create_level(l=2):
 
 class PlayerDamaged(Exception):
     pass
+
+
+class Golem(pygame.sprite.Sprite):
+    def __init__(self, cords, r, *args):
+        super(Golem, self).__init__(*args)
+        self.image = pygame.image.load('data/animations/Golem/Idle/Idle_1.png')
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = cords
+        self.laser = None
+        self.hp = 20
+        self.align = 'left'
+        self.r = r
+        self.status = 'idle'
+        self.anim_n = 60
+
+    def update(self, player_rect, r, attack_rect=None):
+        self.anim_n += 6
+        r1 = self.r
+        self.r = r
+        r = [r[0] - r1[0], r[1] - r1[1]]
+        self.rect.x = self.rect.x + r[0]
+        self.rect.y = self.rect.y + r[1]
+        if self.rect.x - player_rect.x <= 500 and self.status != 'attacking':
+            if abs(self.rect.y - player_rect.y) >= 4:
+                if self.rect.y > player_rect.y:
+                    self.rect.y -= 4
+                else:
+                    self.rect.y += 4
+            elif self.status != 'attack' and self.status != 'attacking':
+                self.status = 'attack'
+                self.anim_n = 30
+                if player_rect.x < self.rect.x:
+                    self.align = 'left'
+                else:
+                    self.align = 'right'
+        if self.status == 'idle':
+            if self.anim_n >= 240:
+                self.anim_n = 60
+            if self.align == 'left':
+                self.image = pygame.transform. \
+                    flip(pygame.image.load(f'data/animations/Golem/Idle/Idle_{self.anim_n // 60}.png'), True, False)
+            else:
+                self.image = pygame.image.load(f'data/animations/Golem/Idle/Idle_{self.anim_n // 60}.png')
+        elif self.status == 'attack':
+            if self.anim_n >= 210:
+                self.status = 'attacking'
+            self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Golem/Attack/Attack'
+                                                                 f'_{self.anim_n // 30}.png'), True, False)
+        elif self.status == 'attacking':
+            if self.laser:
+                if self.laser.completed:
+                    self.laser = None
+                    self.status = 'idle'
+                else:
+                    self.laser.update(self.r)
+            else:
+                self.laser = Laser((self.rect.x, self.rect.y), self.align, self.r)
+        if attack_rect:
+            if self.rect.colliderect(attack_rect):
+                self.hp -= 1
+                print(self.hp)
+
+
+class Laser(pygame.sprite.Sprite):
+    def __init__(self, cords, align, r, *args):
+        super(Laser, self).__init__(*args)
+        self.align = align
+        self.image = pygame.image.load('data/animations/Golem/Laser/Laser_1.png')
+        self.rect = self.image.get_rect()
+        self.completed = False
+        self.damaged = False
+        self.r = r
+        self.rect.x, self.rect.y = cords
+        self.rect.y += 5
+        self.anim_n = 15
+        if align == 'right':
+            self.rect.x += 80
+        else:
+            self.rect.x -= 1835
+            self.image = pygame.transform.flip(self.image, True, False)
+
+    def update(self, r, *args, **kwargs):
+        r1 = self.r
+        self.r = r
+        r = [r[0] - r1[0], r[1] - r1[1]]
+        self.rect.x = self.rect.x + r[0]
+        self.rect.y = self.rect.y + r[1]
+        self.anim_n += 6
+        if self.anim_n >= 210:
+            self.completed = True
+            return
+        if self.align == 'left':
+            self.image = pygame.transform.flip \
+                (pygame.image.load(f'data/animations/Golem/Laser/Laser_{self.anim_n // 15}.png'), True, False)
+        else:
+            self.image = pygame.image.load(f'data/animations/Golem/Laser/Laser_{self.anim_n // 15}.png')

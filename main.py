@@ -15,6 +15,7 @@ walking = {
 }
 player = Player(all_sprites)
 all_sprites.add(player)
+bosses = pygame.sprite.Group()
 camera = Camera([player.rect.x, player.rect.y], player_cord)
 r = camera.r
 enemies = pygame.sprite.Group()
@@ -25,6 +26,10 @@ for key in enemies_c:
         path = 'data/animations/Big_zombie'
     elif key == 'D':
         path = 'data/animations/Big_demon'
+    elif key == 'G':
+        x, y = arr[0]
+        Golem((x * 32, y * 32), r, bosses)
+        continue
     for x, y in arr:
         e = Enemy((x * 32, y * 32), r, path, 100, 8, 1, enemies, all_sprites)
 all_sprites.update(r=r)
@@ -59,8 +64,6 @@ while running:
                 if player.jumping:
                     player.jump()
                     movement[1] -= 12
-                # elif player.status == 'attacking':
-                #     movement[1] += 12
                 else:
                     movement[1] += 12
         rect, collisions, b = player.move(movement, tiles, camera.r)
@@ -97,6 +100,7 @@ while running:
                                 rect = pygame.Rect(player.rect.x - 48, player.rect.y, 90,
                                    player.image.get_height())
                             enemies.update(attack_rect=rect)
+                            bosses.update(player.rect, camera.r, rect)
                             player.rect.y -= 6
                             player.anim_n = 60
                     if event.key == pygame.K_F11:
@@ -139,11 +143,19 @@ while running:
             player.status = 'dying'
             player.anim_n = 80
         enemies.draw(screen)
-        all_sprites.draw(screen)
+        all_sprites.update(r=camera.r)
+        bosses.update(player.rect, camera.r)
         bar.update(HEIGHT, player.hp, cords=(20, HEIGHT // 1.5))
-        # print(bar.rect, bar.image.get_size())
+        all_sprites.draw(screen)
+        bosses.draw(screen)
+        if type(bosses.sprites()[0]) == Golem:
+            if bosses.sprites()[0].laser:
+                screen.blit(bosses.sprites()[0].laser.image, bosses.sprites()[0].laser.rect)
+                if bosses.sprites()[0].laser.rect.colliderect(player.rect) and not bosses.sprites()[0].laser.damaged \
+                        and bosses.sprites()[0].laser.anim_n >= 145:
+                    bosses.sprites()[0].laser.damaged = True
+                    player.hp -= 1
         screen.blit(bar.image, bar.rect)
-        # print(player.status, player.anim_n)
         pygame.display.flip()
         player.update()
     except PlayerDamaged:
