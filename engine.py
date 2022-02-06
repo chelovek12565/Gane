@@ -2,7 +2,6 @@ from PIL import Image, ImageDraw
 from random import randint, sample
 import pygame
 import pprint
-
 WIDTH, HEIGHT = 1200, 850
 
 
@@ -26,7 +25,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def update(self, player_rect=None, r=None, tiles=None, attack_rect=None):
         self.anim_n += 6
-        if self.cd:
+        if self.cd > 0:
             self.cd -= 1
         if r:
             r1 = self.r
@@ -97,11 +96,11 @@ class Enemy(pygame.sprite.Sprite):
                 if self.anim_n >= 760:
                     self.status = None
                     self.image = pygame.Surface((1, 1))
+                    self.kill()
                     return
                 image = pygame.image.load(f'{self.path}/Idle/Idle_1.png')
                 size = (250 // (250 // max(image.get_height(), image.get_width())),
                         200 // (200 // max(image.get_height(), image.get_width())))
-                # self.rect.y += size[1] // 3.5
                 self.image = pygame.transform.scale(pygame.image.load(
                     f'data/animations/Explosion/Exp_{(self.anim_n + 180) // 240}.png'), size)
             if not attack_rect and self.rect.colliderect(player_rect) and not self.cd and self.status and self.status \
@@ -154,7 +153,7 @@ class Enemy(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     image = pygame.image.load('data/animations/Idle/Idle_1.png')
 
-    def __init__(self, *args):
+    def __init__(self, wh=None, *args):
         super(Player, self).__init__(*args)
         self.falling = False
         self.first = True
@@ -163,16 +162,28 @@ class Player(pygame.sprite.Sprite):
         self.hp = 20
         self.anim_n = 60
         self.align = 'right'
+        self.right = None
+        self.left = None
         self.rect = self.image.get_rect()
-        self.rect.x = WIDTH // 2 - self.rect.x
-        self.rect.y = HEIGHT // 2 - self.rect.y
+        if wh:
+            self.rect.x = wh[0] // 2 - self.rect.x
+            self.rect.y = wh[1] // 2 - self.rect.y + 22
+            self.wh = wh
+        else:
+            self.rect.x = WIDTH // 2 - self.rect.x
+            self.rect.y = HEIGHT // 2 - self.rect.y + 22
         self.status = 'idle'
+
+    def get_attack_rect(self):
+        if self.status == 'attack':
+            return self.rect
+        return None
 
     def update(self, r=None, attack_rects=None):
         if self.first:
             self.first = False
-            self.rect.x = WIDTH // 2 - 32
-            self.rect.y = HEIGHT // 2 + 22
+            self.rect.x = self.wh[0] // 2 - 32
+            self.rect.y = self.wh[1] // 2 + 22
         self.anim_n += 6
         if self.status == 'idle':
             if self.anim_n >= 600:
@@ -221,16 +232,19 @@ class Player(pygame.sprite.Sprite):
                 self.anim_n = 60
                 self.rect.y += 6
                 if self.align == 'left':
-                    self.rect.x += 70
                     self.image = pygame.image.load('data/animations/Idle/Idle_1.png')
+                    self.rect.topright = self.right
+                    self.rect.x = self.right[0] - 42
                 return
             if self.align == 'right':
                 self.image = pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 60}.png')
+                self.rect = self.image.get_rect()
+                self.rect.topleft = self.left
             else:
-                if self.anim_n == 126:
-                    self.rect.x -= 70
                 self.image = pygame.transform.flip(
                     pygame.image.load(f'data/animations/Attack/Attack_{self.anim_n // 60}.png'), True, False)
+                self.rect = self.image.get_rect()
+                self.rect.topright = self.right
         if self.status != 'dash' and self.status != 'attacking':
             n = self.jump_n // 5
             if not n:
@@ -243,6 +257,9 @@ class Player(pygame.sprite.Sprite):
             for rect in attack_rects:
                 if self.rect.colliderect(rect):
                     self.hp -= 1
+        tl = self.rect.topleft
+        self.rect = self.image.get_rect()
+        self.rect.topleft = tl
 
     def align_change(self, side):
         if self.align != side:
@@ -451,6 +468,10 @@ class PlayerDamaged(Exception):
     pass
 
 
+class NextLevel(Exception):
+    pass
+
+
 class Golem(pygame.sprite.Sprite):
     def __init__(self, cords, r, *args):
         super(Golem, self).__init__(*args)
@@ -458,6 +479,7 @@ class Golem(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = cords
         self.laser = None
+        self.dusts = []
         self.hp = 20
         self.align = 'left'
         self.r = r
@@ -471,19 +493,33 @@ class Golem(pygame.sprite.Sprite):
         r = [r[0] - r1[0], r[1] - r1[1]]
         self.rect.x = self.rect.x + r[0]
         self.rect.y = self.rect.y + r[1]
-        if self.rect.x - player_rect.x <= 500 and self.status != 'attacking':
+        abs_y = self.rect.y - self.r[1]
+        if self.rect.x - player_rect.x <= 500 and self.status != 'attacking' and self.status\
+                != 'death' and self.status:
             if abs(self.rect.y - player_rect.y) >= 4:
                 if self.rect.y > player_rect.y:
                     self.rect.y -= 4
                 else:
-                    self.rect.y += 4
+                    if abs_y < 471:
+                        self.rect.y += 4
+
             elif self.status != 'attack' and self.status != 'attacking':
                 self.status = 'attack'
                 self.anim_n = 30
-                if player_rect.x < self.rect.x:
-                    self.align = 'left'
-                else:
-                    self.align = 'right'
+            if player_rect.x < self.rect.centerx:
+                self.align = 'left'
+            else:
+                self.align = 'right'
+            if self.align == 'left':
+                if abs(self.rect.x - player_rect.x) <= 100 and abs(self.rect.y - player_rect.y) <= 70 \
+                        and self.status != 'melee' and abs_y == 471:
+                    self.status = 'melee'
+                    self.anim_n = 60
+            else:
+                if abs((self.rect.x + self.image.get_width() // 2) - player_rect.x) <= 100 and abs(self.rect.y - player_rect.y) <= 70 \
+                        and self.status != 'melee' and abs_y == 471:
+                    self.status = 'melee'
+                    self.anim_n = 60
         if self.status == 'idle':
             if self.anim_n >= 240:
                 self.anim_n = 60
@@ -495,8 +531,11 @@ class Golem(pygame.sprite.Sprite):
         elif self.status == 'attack':
             if self.anim_n >= 210:
                 self.status = 'attacking'
-            self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Golem/Attack/Attack'
-                                                                 f'_{self.anim_n // 30}.png'), True, False)
+            if self.align == 'left':
+                self.image = pygame.transform.flip(pygame.image.load(f'data/animations/Golem/Attack/Attack'
+                                                                     f'_{self.anim_n // 30}.png'), True, False)
+            else:
+                self.image = pygame.image.load(f'data/animations/Golem/Attack/Attack_{self.anim_n // 30}.png')
         elif self.status == 'attacking':
             if self.laser:
                 if self.laser.completed:
@@ -506,10 +545,59 @@ class Golem(pygame.sprite.Sprite):
                     self.laser.update(self.r)
             else:
                 self.laser = Laser((self.rect.x, self.rect.y), self.align, self.r)
+        elif self.status == 'melee':
+            if self.anim_n >= 240:
+                self.status = 'idle'
+                if self.align == 'left':
+                    self.rect.x += 36
+                self.anim_n = 60
+            if self.align == 'left':
+                if self.anim_n == 210:
+                    self.rect.x -= 36
+                    self.dusts.append(Dust((self.rect.x + 15, self.rect.bottom), self.r))
+                self.image = pygame.transform.flip(
+                    pygame.image.load(f'data/animations/Golem/Melee/Melee_{self.anim_n // 30}.png'), True, False)
+            else:
+                if self.anim_n == 210:
+                    self.dusts.append(Dust((self.rect.x + 153, self.rect.bottom), self.r))
+                self.image = pygame.image.load(f'data/animations/Golem/Melee/Melee_{self.anim_n // 30}.png')
+        elif self.status == 'death':
+            if self.anim_n >= 780:
+                self.status = None
+                return
+            if self.anim_n < 600:
+                if abs_y > 411:
+                    if abs_y - 411 < 6:
+                        self.rect.y -= abs_y - 411
+                    else:
+                        self.rect.y -= 6
+                    self.anim_n = 60
+                    return
+                elif abs_y < 411:
+                    if 411 - abs_y < 6:
+                        self.rect.y += 411 - abs_y
+                    else:
+                        self.rect.y += 6
+                    return
+                self.bl = self.rect.bottomleft
+            if self.align == 'right':
+                self.image = pygame.image.load(f'data/animations/Golem/Death/Death_{self.anim_n // 60}.png')
+            else:
+                self.image = pygame.transform.flip(pygame.image.load(
+                    f'data/animations/Golem/Death/Death_{self.anim_n // 60}.png'), True, False)
+            x, y = self.rect.x, self.rect.y
+            self.rect = self.image.get_rect()
+            self.rect.x, self.rect.y = x, y
+            if self.anim_n >= 600:
+                self.rect = self.image.get_rect()
+                self.rect.bottomleft = self.bl[0] + r[0], 454 - self.r[1]
+                self.bl = self.rect.bottomleft
         if attack_rect:
             if self.rect.colliderect(attack_rect):
                 self.hp -= 1
-                print(self.hp)
+                if self.hp == 0:
+                    self.status = 'death'
+                    self.anim_n = 60
 
 
 class Laser(pygame.sprite.Sprite):
@@ -525,7 +613,7 @@ class Laser(pygame.sprite.Sprite):
         self.rect.y += 5
         self.anim_n = 15
         if align == 'right':
-            self.rect.x += 80
+            self.rect.x += 58
         else:
             self.rect.x -= 1835
             self.image = pygame.transform.flip(self.image, True, False)
@@ -541,7 +629,63 @@ class Laser(pygame.sprite.Sprite):
             self.completed = True
             return
         if self.align == 'left':
-            self.image = pygame.transform.flip \
+            self.image = pygame.transform.flip\
                 (pygame.image.load(f'data/animations/Golem/Laser/Laser_{self.anim_n // 15}.png'), True, False)
         else:
             self.image = pygame.image.load(f'data/animations/Golem/Laser/Laser_{self.anim_n // 15}.png')
+
+
+class Dust(pygame.sprite.Sprite):
+    def __init__(self, middle_bottom, r):
+        super(Dust, self).__init__()
+        self.completed = False
+        self.damaged = False
+        self.anim_n = 30
+        self.r = r
+        self.image = pygame.image.load(f'data/animations/Dust/Dust_1.png')
+        self.rect = self.image.get_rect()
+        self.midbottom = middle_bottom
+        self.rect.midbottom = middle_bottom
+
+    def update(self, player_rect=None, r=None, *args, **kwargs):
+        self.anim_n += 6
+        if self.anim_n >= 260:
+            self.completed = True
+            self.kill()
+            return
+        self.image = pygame.image.load(f'data/animations/Dust/Dust_{self.anim_n // 30}.png')
+        if player_rect:
+            if player_rect.colliderect(self.rect) and not self.damaged:
+                self.damaged = True
+                raise PlayerDamaged
+        if r:
+            r1 = self.r
+            self.r = r
+            r = [r[0] - r1[0], r[1] - r1[1]]
+            self.rect.x = self.rect.x + r[0]
+            self.rect.y = self.rect.y + r[1]
+
+
+class Portal(pygame.sprite.Sprite):
+    def __init__(self, bl, r, *args):
+        super(Portal, self).__init__(*args)
+        self.image = pygame.image.load('data/portal.png')
+        self.rect = self.image.get_rect()
+        self.bl = bl
+        self.rect.bottomleft = bl
+        print(self.rect.x, self.rect.y)
+        self.rect.x -= r[0]
+        self.rect.y -= r[1]
+        self.r = r
+
+    def update(self, r=None, player_rect=None, *args, **kwargs):
+        # print(self.rect.x, self.rect.y)
+        if r:
+            r1 = self.r
+            self.r = r
+            r = [r[0] - r1[0], r[1] - r1[1]]
+            self.rect.x = self.rect.x + r[0]
+            self.rect.y = self.rect.y + r[1]
+        if player_rect:
+            if player_rect.collidepoint(self.rect.center):
+                raise NextLevel
