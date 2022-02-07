@@ -674,8 +674,8 @@ class Portal(pygame.sprite.Sprite):
         self.bl = bl
         self.rect.bottomleft = bl
         print(self.rect.x, self.rect.y)
-        self.rect.x -= r[0]
-        self.rect.y -= r[1]
+        self.rect.x += r[0]
+        self.rect.y += r[1]
         self.r = r
 
     def update(self, r=None, player_rect=None, *args, **kwargs):
@@ -689,3 +689,34 @@ class Portal(pygame.sprite.Sprite):
         if player_rect:
             if player_rect.collidepoint(self.rect.center):
                 raise NextLevel
+
+
+class Door(pygame.sprite.Sprite):
+    def __init__(self, tl, r, *args):
+        super(Door, self).__init__(*args)
+        self.image = pygame.image.load('data/door.png')
+        self.rect = self.image.get_rect()
+        self.r = r
+        self.anim_n = 0
+        self.rect.topleft = tl
+        self.rect.x += r[0]
+        self.rect.y += r[1]
+        self.status = 'closed'
+
+    def update(self, player_rect=None, r=None):
+        if r:
+            r1 = self.r
+            self.r = r
+            r = [r[0] - r1[0], r[1] - r1[1]]
+            self.rect.x = self.rect.x + r[0]
+            self.rect.y = self.rect.y + r[1]
+        if player_rect:
+            if player_rect.colliderect(self.rect) and self.status:
+                return 'move'
+        if self.status == 'opening':
+            if self.anim_n < 128:
+                self.anim_n += 4
+                self.rect.y -= 4
+            else:
+                self.status = None
+        return None

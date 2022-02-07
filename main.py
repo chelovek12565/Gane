@@ -31,8 +31,8 @@ def main(hp, *args):
     camera = Camera([player.rect.x, player.rect.y], player_cord)
     r = camera.r
     enemies = pygame.sprite.Group()
-    bar = Bar(player.hp, (20, HEIGHT // 1.5), HEIGHT)
-    bar.update(HEIGHT, player.hp, cords=(20, HEIGHT // 1.5))
+    bar = Bar(hp, (20, HEIGHT // 1.5), HEIGHT)
+    bar.update(HEIGHT, hp + 1, cords=(20, HEIGHT // 1.5))
     for key in enemies_c:
         arr = enemies_c[key]
         if key == 'Z':
@@ -47,9 +47,14 @@ def main(hp, *args):
             path = 'data/animations/Ogre'
         elif key == 'S':
             path = 'data/animations/Skeleton'
+        elif key == 'd':
+            x, y = arr[0]
+            x -= 1
+            door = Door((x * 32, y * 32), r)
+            continue
         elif key == 'P':
             x, y = arr[0]
-            y -= 1
+            y += 1
             Portal((x * 32, y * 32), r, enemies)
             continue
         elif key == 'G':
@@ -192,7 +197,17 @@ def main(hp, *args):
                 for i in range(len(bosses.sprites()[0].dusts)):
                     enemies.add(bosses.sprites()[0].dusts.pop())
             enemies.draw(screen)
+            res = door.update(player.rect, r)
+            if res:
+                x, y = camera.r
+                if player.status != 'dash':
+                    camera.r = [x + 6, y]
+                else:
+                    camera.r = [x + 25, y]
+            if door.status == 'closed' and bosses.sprites()[0].status == 'death':
+                door.status = 'opening'
             enemies.update(player_rect=player.rect, r=camera.r, tiles=tiles, attack_rect=player.get_attack_rect())
+            screen.blit(door.image, door.rect)
             screen.blit(bar.image, bar.rect)
             pygame.display.flip()
             player.update()
