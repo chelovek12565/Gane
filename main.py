@@ -1,5 +1,6 @@
 from engine import *
 import pygame
+import time
 import sys
 
 pygame.init()
@@ -10,11 +11,14 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 screen.fill((66, 40, 53))
 # pygame.display.set
 clock = pygame.time.Clock()
-sys.setrecursionlimit(999)
+sys.setrecursionlimit(9999)
 
 
-def main(hp, *args):
+def main(hp, n=1, total_time=0, *args):
     global clock, screen
+    with open('data/saves/save.txt', 'wt') as f:
+        f.write(f'{int(total_time)} 0 {hp} {n}')
+    pause = False
     WIDTH, HEIGHT = screen.get_size()
     print(screen.get_size())
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
@@ -71,6 +75,11 @@ def main(hp, *args):
     running = True
     fullscreen = False
     player.hp = hp
+    font = pygame.font.Font('data/font.ttf', 50)
+    font2 = pygame.font.Font('data/font.ttf', 70)
+    text = font.render(f'Floor {n}', True, (212, 100, 59))
+
+    start_time = time.time()
     while running:
         clock.tick(60)
         WIDTH, HEIGHT = screen.get_size()
@@ -138,6 +147,8 @@ def main(hp, *args):
                                 bosses.update(player.rect, camera.r, rect)
                                 player.rect.y -= 6
                                 player.anim_n = 60
+                            elif event.key == pygame.K_ESCAPE:
+                                pause = not pause
                         if event.key == pygame.K_F11:
                             if not fullscreen:
                                 screen = pygame.display.set_mode(display_size, pygame.FULLSCREEN)
@@ -157,6 +168,7 @@ def main(hp, *args):
                                                                player.image.get_height() // 2
                                 camera.re_init((player.rect.x, player.rect.y))
                                 all_sprites.update(r=camera.r)
+                                screen = pygame.display.set_mode((750, 750), 32, 32)
                                 screen = pygame.display.set_mode((750, 750), pygame.RESIZABLE)
                                 fullscreen = False
                                 player.right = player.rect.topright
@@ -181,10 +193,20 @@ def main(hp, *args):
             if player.status != 'dying' and player.status and player.hp <= 0:
                 player.status = 'dying'
                 player.anim_n = 80
+            if not pause:
+                all_sprites.update(r=camera.r)
+                bosses.update(player.rect, camera.r)
+                bar.update(HEIGHT, player.hp, cords=(20, HEIGHT // 1.5))
+                res = door.update(player.rect, r)
+                if res:
+                    x, y = camera.r
+                    if player.status != 'dash':
+                        camera.r = [x + 6, y]
+                    else:
+                        camera.r = [x + 25, y]
+                player.update()
+                enemies.update(player_rect=player.rect, r=camera.r, tiles=tiles, attack_rect=player.get_attack_rect())
             screen.fill((66, 40, 53))
-            all_sprites.update(r=camera.r)
-            bosses.update(player.rect, camera.r)
-            bar.update(HEIGHT, player.hp, cords=(20, HEIGHT // 1.5))
             all_sprites.draw(screen)
             bosses.draw(screen)
             if type(bosses.sprites()[0]) == Golem:
@@ -197,24 +219,36 @@ def main(hp, *args):
                 for i in range(len(bosses.sprites()[0].dusts)):
                     enemies.add(bosses.sprites()[0].dusts.pop())
             enemies.draw(screen)
-            res = door.update(player.rect, r)
-            if res:
-                x, y = camera.r
-                if player.status != 'dash':
-                    camera.r = [x + 6, y]
-                else:
-                    camera.r = [x + 25, y]
             if door.status == 'closed' and bosses.sprites()[0].status == 'death':
                 door.status = 'opening'
-            enemies.update(player_rect=player.rect, r=camera.r, tiles=tiles, attack_rect=player.get_attack_rect())
             screen.blit(door.image, door.rect)
+            screen.blit(text, pygame.Rect(WIDTH - text.get_size()[0] - 50, 50, *text.get_size()))
             screen.blit(bar.image, bar.rect)
+            if pause:
+                mx, my = pygame.mouse.get_pos()
+                pause_text = font2.render('Pause', True, (212, 100, 59))
+                con_text = font.render('Continue', True, (188, 92, 57))
+                con_rect = pygame.Rect((WIDTH - con_text.get_width()) // 2, 100 + pause_text.get_height(),
+                                                  *con_text.get_size())
+                if con_rect.collidepoint(mx, my) and pygame.mouse.get_pressed(3)[0]:
+                    pause = False
+
+                load_text = font.render('Load', True, (188, 92, 57))
+                load_rect = pygame.Rect((WIDTH - load_text.get_width()) // 2, 150 + pause_text.get_height()
+                                                   + con_text.get_height(), *load_text.get_size())
+                if load_rect.collidepoint(mx, my) and pygame.mouse.get_pressed(3)[0]:
+                    load()
+                pygame.draw.rect(screen, (0, 0, 0, 200), (0, 0, WIDTH, HEIGHT))
+                screen.blit(pause_text, pygame.Rect((WIDTH - pause_text.get_width()) // 2, 50, *pause_text.get_size()))
+                screen.blit(con_text, con_rect)
+                screen.blit(load_text, load_rect)
             pygame.display.flip()
-            player.update()
+
         except PlayerDamaged:
             player.hp -= 1
         except NextLevel:
-            main(player.hp, WIDTH, HEIGHT)
+            end_time = time.time() - start_time
+            cleared(player.hp, n, end_time, end_time + total_time)
     return False
 
 
@@ -240,8 +274,12 @@ def menu(): # TODO menu
         if pygame.Rect(50, 50 + HEIGHT // 3.5, *lg_size).collidepoint(mx, my):
             color_1 = (144, 77, 48)
             if click:
-                main(20, WIDTH, HEIGHT)
+                with open('data/saves/save.txt', 'rt') as f:
+                    tt, t, hp, n = map(int, f.read().split())
+                    main(hp, n, tt, WIDTH, HEIGHT)
         elif pygame.Rect(50, 50 + HEIGHT // 3.5 * 2, *ng_size).collidepoint(mx, my):
+            if click:
+                main(20, 1, 0, WIDTH, HEIGHT)
             color_2 = (144, 77, 48)
         screen.fill((199, 120, 90))
 
@@ -250,6 +288,42 @@ def menu(): # TODO menu
         screen.blit(font2.render('New Game', True, color_2), (50, 50 + HEIGHT // 3.5 * 2))
         pygame.display.flip()
 
+
+def cleared(hp, n, time, total_time):
+    global clock, screen
+    WIDTH, HEIGHT = screen.get_size()
+    font = pygame.font.Font('data/font.ttf', 70)
+    font2 = pygame.font.Font('data/font.ttf', 50)
+    fc_text = font.render(f'Floor {n} cleared!', True, (64, 35, 32))
+    tt_text = font2.render(f'Total time - {int(total_time // 60)}:{int(total_time % 60)}', True, (179, 98, 61))
+    t_text = font2.render(f'Time - {int(time // 60)}:{int(time % 60)}', True, (179, 98, 61))
+    next_text = font.render(f'Press Enter', True, (64, 35, 32))
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    main(hp, n + 1, total_time + time)
+            elif event.type == pygame.VIDEORESIZE:
+                WIDTH, HEIGHT = event.size
+                screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        screen.fill((199, 120, 90))
+        screen.blit(fc_text, pygame.Rect((WIDTH - fc_text.get_width()) // 2, 50, *fc_text.get_size()))
+        screen.blit(tt_text, pygame.Rect((WIDTH - tt_text.get_width()) // 2, 100 + fc_text.get_height(),
+                    *tt_text.get_size()))
+        screen.blit(t_text, pygame.Rect((WIDTH - t_text.get_width()) // 2, 150 + fc_text.get_height()
+                                        + tt_text.get_height(), *t_text.get_size()))
+        screen.blit(next_text, pygame.Rect((WIDTH - next_text.get_width()) // 2, 220 + fc_text.get_height()
+                                           + tt_text.get_height() + t_text.get_height(), *next_text.get_size()))
+        pygame.display.flip()
+
+
+def load():
+    with open('data/saves/save.txt', 'rt') as f:
+        tt, t, hp, n, *args = map(int, f.read().split())
+        main(hp, n, tt)
 
 menu()
 pygame.quit()

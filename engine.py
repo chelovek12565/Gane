@@ -438,7 +438,7 @@ def level_create(arr):
 
 
 def create_level(l=2):
-    names = sample(range(1, l + 1), k=l)
+    names = sample(range(1, 6), k=l)
     arr = []
     files = []
     with open('data/levels/in.txt', 'rt') as f:
