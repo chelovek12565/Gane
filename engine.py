@@ -430,7 +430,6 @@ def level_create(arr):
                     else:
                         enemies[symbol].append((j, i))
             except IndexError:
-                print(i, j)
                 pass
 
     level = Level(im.tobytes(), im.size)
@@ -438,7 +437,9 @@ def level_create(arr):
 
 
 def create_level(l=2):
-    names = sample(range(1, 6), k=l)
+    names = sample(range(1, 8), k=l)
+    if 7 in names:
+        print(7)
     arr = []
     files = []
     with open('data/levels/in.txt', 'rt') as f:
@@ -673,13 +674,11 @@ class Portal(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.bl = bl
         self.rect.bottomleft = bl
-        print(self.rect.x, self.rect.y)
         self.rect.x += r[0]
         self.rect.y += r[1]
         self.r = r
 
     def update(self, r=None, player_rect=None, *args, **kwargs):
-        # print(self.rect.x, self.rect.y)
         if r:
             r1 = self.r
             self.r = r

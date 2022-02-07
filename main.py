@@ -9,7 +9,6 @@ fullscreen = False
 pygame.display.set_icon(pygame.image.load('data/icon.png'))
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 screen.fill((66, 40, 53))
-# pygame.display.set
 clock = pygame.time.Clock()
 sys.setrecursionlimit(9999)
 
@@ -20,7 +19,6 @@ def main(hp, n=1, total_time=0, *args):
         f.write(f'{int(total_time)} 0 {hp} {n}')
     pause = False
     WIDTH, HEIGHT = screen.get_size()
-    print(screen.get_size())
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
     all_sprites = pygame.sprite.Group()
     level, player_cord, tiles, enemies_c = create_level(4)
@@ -75,6 +73,7 @@ def main(hp, n=1, total_time=0, *args):
     running = True
     fullscreen = False
     player.hp = hp
+    die_n = 0
     font = pygame.font.Font('data/font.ttf', 50)
     font2 = pygame.font.Font('data/font.ttf', 70)
     text = font.render(f'Floor {n}', True, (212, 100, 59))
@@ -174,7 +173,9 @@ def main(hp, n=1, total_time=0, *args):
                                 player.right = player.rect.topright
                                 player.left = player.rect.topleft
                     else:
-                        pass
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_ESCAPE:
+                                pause = True
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_d:
                         walking['right'] = False
@@ -232,23 +233,27 @@ def main(hp, n=1, total_time=0, *args):
                                                   *con_text.get_size())
                 if con_rect.collidepoint(mx, my) and pygame.mouse.get_pressed(3)[0]:
                     pause = False
-
                 load_text = font.render('Load', True, (188, 92, 57))
                 load_rect = pygame.Rect((WIDTH - load_text.get_width()) // 2, 150 + pause_text.get_height()
                                                    + con_text.get_height(), *load_text.get_size())
                 if load_rect.collidepoint(mx, my) and pygame.mouse.get_pressed(3)[0]:
                     load()
-                pygame.draw.rect(screen, (0, 0, 0, 200), (0, 0, WIDTH, HEIGHT))
+                menu_text = font.render('Main Menu', True, (188, 92, 57))
+                menu_rect = pygame.Rect((WIDTH - menu_text.get_width()) // 2, 200 + pause_text.get_height() +
+                                        con_text.get_height() + load_text.get_height(), *menu_text.get_size())
+                if menu_rect.collidepoint(mx, my) and pygame.mouse.get_pressed(3)[0]:
+                    menu()
+                pygame.draw.rect(screen, pygame.Color(0, 0, 0, 30), (0, 0, WIDTH, HEIGHT))
                 screen.blit(pause_text, pygame.Rect((WIDTH - pause_text.get_width()) // 2, 50, *pause_text.get_size()))
                 screen.blit(con_text, con_rect)
                 screen.blit(load_text, load_rect)
-            pygame.display.flip()
-
+                screen.blit(menu_text, menu_rect)
         except PlayerDamaged:
             player.hp -= 1
         except NextLevel:
             end_time = time.time() - start_time
             cleared(player.hp, n, end_time, end_time + total_time)
+        pygame.display.flip()
     return False
 
 
@@ -324,6 +329,7 @@ def load():
     with open('data/saves/save.txt', 'rt') as f:
         tt, t, hp, n, *args = map(int, f.read().split())
         main(hp, n, tt)
+
 
 menu()
 pygame.quit()
